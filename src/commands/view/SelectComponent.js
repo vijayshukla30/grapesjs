@@ -176,6 +176,7 @@ export default {
     this.updateToolsGlobal();
     // This will hide some elements from the select component
     this.updateToolsLocal(result);
+    this.initResize(component);
   }),
 
   updateGlobalPos() {
@@ -203,6 +204,8 @@ export default {
   onOut() {
     this.currentDoc = null;
     this.em.setHovered(0);
+    this.elHovered = 0;
+    this.updateToolsLocal();
     this.canvas.getFrames().forEach(frame => {
       const { view } = frame;
       const el = view && view.getToolsEl();
@@ -422,8 +425,7 @@ export default {
     const resizeClass = `${pfx}resizing`;
     const model =
       !isElement(elem) && isTaggableNode(elem) ? elem : em.getSelected();
-    const resizable = model.get('resizable');
-    const el = isElement(elem) ? elem : model.getEl();
+    const resizable = model && model.get('resizable');
     let options = {};
     let modelToStyle;
 
@@ -441,6 +443,7 @@ export default {
     };
 
     if (editor && resizable) {
+      const el = isElement(elem) ? elem : model.getEl();
       options = {
         // Here the resizer is updated with the current element height and width
         onStart(e, opts = {}) {
@@ -708,26 +711,13 @@ export default {
     style.height = pos.height + unit;
 
     this.updateToolbarPos({ top: targetToElem.top, left: targetToElem.left });
-
-    // const { resizer, em } = this;
-    // const model = em.getSelected();
-    // const el = model && model.getEl();
-    // if (!el) return;
-
-    // if (el && this.elSelected !== el) {
-    //   this.elSelected = el;
-    //   const pos = this.getElementPos(el);
-    //   this.updateToolbarPos(el, pos);
-    //   this.showFixedElementOffset(el, pos);
-    //   resizer && resizer.updateContainer();
-    // }
   },
 
   /**
    * Update attached elements, eg. component toolbar
    */
   updateAttached: debounce(function() {
-    this.updateToolsGlobal();
+    this.updateGlobalPos();
   }),
 
   /**
