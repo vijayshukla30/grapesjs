@@ -21,8 +21,8 @@ const deps = [
   require('storage_manager'),
   require('device_manager'),
   require('parser'),
-  require('selector_manager'),
   require('style_manager'),
+  require('selector_manager'),
   require('modal_dialog'),
   require('code_manager'),
   require('panels'),
@@ -298,9 +298,13 @@ export default Backbone.Model.extend({
    * @private
    */
   setSelected(el, opts = {}) {
+    const { event } = opts;
+    const ctrlKey = event && (event.ctrlKey || event.metaKey);
+    const { shiftKey } = event || {};
     const multiple = isArray(el);
     const els = multiple ? el : [el];
     const selected = this.get('selected');
+    const mltSel = this.getConfig('multipleSelection');
     let added;
 
     // If an array is passed remove all selected
@@ -310,6 +314,48 @@ export default Backbone.Model.extend({
     els.forEach(el => {
       const model = getModel(el, $);
       if (model && !model.get('selectable')) return;
+
+      // Hanlde multiple selection
+      if (ctrlKey && mltSel) {
+        return this.toggleSelected(model);
+      } else if (shiftKey && mltSel) {
+        this.clearSelection(this.get('Canvas').getWindow());
+        const coll = model.collection;
+        const index = model.index();
+        let min, max;
+
+        // Fin min and max siblings
+        this.getSelectedAll().forEach(sel => {
+          const selColl = sel.collection;
+          const selIndex = sel.index();
+          if (selColl === coll) {
+            if (selIndex < index) {
+              // First model BEFORE the selected one
+              min = isUndefined(min) ? selIndex : Math.max(min, selIndex);
+            } else if (selIndex > index) {
+              // First model AFTER the selected one
+              max = isUndefined(max) ? selIndex : Math.min(max, selIndex);
+            }
+          }
+        });
+
+        if (!isUndefined(min)) {
+          while (min !== index) {
+            this.addSelected(coll.at(min));
+            min++;
+          }
+        }
+
+        if (!isUndefined(max)) {
+          while (max !== index) {
+            this.addSelected(coll.at(max));
+            max--;
+          }
+        }
+
+        return this.addSelected(model);
+      }
+
       !multiple && this.removeSelected(selected.filter(s => s !== model));
       this.addSelected(model, opts);
       added = model;
@@ -444,7 +490,7 @@ export default Backbone.Model.extend({
    * @returns {String}
    */
   getState() {
-    return this.get('state');
+    return this.get('state') || '';
   },
 
   /**
@@ -614,9 +660,10 @@ export default Backbone.Model.extend({
    * Update canvas dimensions and refresh data useful for tools positioning
    * @private
    */
-  refreshCanvas() {
+  refreshCanvas(opts = {}) {
     this.set('canvasOffset', null);
     this.set('canvasOffset', this.get('Canvas').getOffset());
+    opts.tools && this.trigger('canvas:updateTools');
   },
 
   /**
@@ -703,27 +750,18 @@ export default Backbone.Model.extend({
     const { config } = this;
     const editor = this.getEditor();
     const { editors = [] } = config.grapesjs || {};
-    const {
-      DomComponents,
-      CssComposer,
-      UndoManager,
-      Panels,
-      Canvas,
-      Keymaps,
-      RichTextEditor
-    } = this.attributes;
     this.stopDefault();
-    DomComponents.clear();
-    CssComposer.clear();
-    UndoManager.clear().removeAll();
-    Panels.getPanels().reset();
-    Canvas.getCanvasView().remove();
-    Keymaps.removeAll();
-    RichTextEditor.destroy();
+    this.get('modules')
+      .slice()
+      .reverse()
+      .forEach(mod => mod.destroy());
     this.view.remove();
     this.stopListening();
     this.clear({ silent: true });
     this.destroyed = 1;
+    ['config', 'view', '_previousAttributes', '_events', '_listeners'].forEach(
+      i => (this[i] = {})
+    );
     editors.splice(editors.indexOf(editor), 1);
     $(config.el)
       .empty()

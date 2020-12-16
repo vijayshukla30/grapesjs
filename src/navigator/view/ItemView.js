@@ -15,6 +15,7 @@ export default Backbone.View.extend({
     'click [data-toggle-visible]': 'toggleVisibility',
     'click [data-toggle-select]': 'handleSelect',
     'mouseover [data-toggle-select]': 'handleHover',
+    'mouseout [data-toggle-select]': 'handleHoverOut',
     'click [data-toggle-open]': 'toggleOpening',
     'dblclick [data-name]': 'handleEdit',
     'focusout [data-name]': 'handleEditEnd'
@@ -234,7 +235,7 @@ export default Backbone.View.extend({
 
     if (em) {
       const model = this.model;
-      em.setSelected(model, { fromLayers: 1 });
+      em.setSelected(model, { fromLayers: 1, event: e });
       const scroll = config.scrollCanvas;
       scroll && model.views.forEach(view => view.scrollIntoView(scroll));
     }
@@ -247,6 +248,12 @@ export default Backbone.View.extend({
     e.stopPropagation();
     const { em, config, model } = this;
     em && config.showHover && em.setHovered(model, { fromLayers: 1 });
+  },
+
+  handleHoverOut(ev) {
+    ev.stopPropagation();
+    const { em, config } = this;
+    em && config.showHover && em.setHovered(0, { fromLayers: 1 });
   },
 
   /**

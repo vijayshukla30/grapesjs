@@ -37,6 +37,7 @@ import { isElement } from 'underscore';
 import defaults from './config/config';
 import Sectors from './model/Sectors';
 import Properties from './model/Properties';
+import PropertyFactory from './model/PropertyFactory';
 import SectorsView from './view/SectorsView';
 
 export default () => {
@@ -45,6 +46,8 @@ export default () => {
   var sectors, SectView;
 
   return {
+    PropertyFactory: PropertyFactory(),
+
     /**
      * Name of the module
      * @type {String}
@@ -411,6 +414,16 @@ export default () => {
     _logNoSector(sectorId) {
       const { em } = this;
       em && em.logWarning(`'${sectorId}' sector not found`);
+    },
+
+    destroy() {
+      [properties, sectors].forEach(coll => {
+        coll.reset();
+        coll.stopListening();
+      });
+      SectView.remove();
+      [c, properties, sectors, SectView].forEach(i => (i = {}));
+      this.em = {};
     }
   };
 };
